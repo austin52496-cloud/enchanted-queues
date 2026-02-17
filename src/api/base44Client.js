@@ -106,9 +106,37 @@ export const base44 = {
     },
   },
   functions: {
-    invoke: async (name, params) => {
-      console.log(`Function ${name} called — wire up in Session 3`, params);
+  invoke: async (name, params) => {
+    const functionMap = {
+      'createCheckoutSession': '/api/create-checkout-session',
+      'cancelSubscription': '/api/cancel-subscription',
+    };
+    
+    const endpoint = functionMap[name];
+    if (!endpoint) {
+      console.log(`Function ${name} not implemented yet`);
       return { data: null };
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...params,
+          userId: user?.id,
+          userEmail: user?.email
+        })
+      });
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      console.error(`Function ${name} error:`, error);
+      return { data: null, error };
+    }
+  },
+},
     },
   },
   appLogs: {
