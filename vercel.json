@@ -1,10 +1,4 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false,
-  "routes": [
-    {
-      "src": "/api/stripe-webhook",
-      "dest": "/api/stripe-webhook.js"
-    }
-  ]
+  "trailingSlash": false
 }
