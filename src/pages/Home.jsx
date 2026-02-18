@@ -98,19 +98,24 @@ export default function Home() {
     },
   });
 
-  const { data: newsData } = useQuery({
-    queryKey: ["parkNews"],
-    queryFn: async () => {
-      try {
-        const response = await base44.functions.invoke("fetchParkNews");
-        return response.data;
-      } catch (error) {
-        console.error('News fetch error:', error);
-        return { success: false, articles: [] };
-      }
-    },
-    refetchInterval: 28800000, // Refresh every 8 hours
-  });
+const { data: newsData } = useQuery({
+  queryKey: ["parkNews"],
+  queryFn: async () => {
+    try {
+      const response = await fetch('https://sviblotdflujritawqem.supabase.co/functions/v1/fetchParkNews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      console.log('News data:', data); // Debug log
+      return data;
+    } catch (error) {
+      console.error('News fetch error:', error);
+      return { success: false, articles: [] };
+    }
+  },
+  refetchInterval: 3600000, // Refresh every hour
+});
 
   const { data: homeTheme } = useQuery({
     queryKey: ["home-theme"],
