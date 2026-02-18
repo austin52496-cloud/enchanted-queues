@@ -76,11 +76,11 @@ export const base44 = {
       filter: async (filters, order, limit) => { let q = supabase.from('wait_time_history').select('*'); Object.entries(filters).forEach(([k,v]) => q = q.eq(k,v)); q = q.order('recorded_at', { ascending: false }).limit(limit || 500); const { data } = await q; return data || []; },
     },
     SystemMessage: {
-      list: async () => { const { data } = await supabase.from('system_messages').select('*').eq('is_active', true); return data || []; },
-      create: async (obj) => { const { data } = await supabase.from('system_messages').insert(obj).select().single(); return data; },
-      update: async (id, updates) => { await supabase.from('system_messages').update(updates).eq('id', id); },
-      delete: async (id) => { await supabase.from('system_messages').delete().eq('id', id); },
-    },
+	list: async () => { const { data } = await supabase.from('system_messages').select('*').order('created_at', { ascending: false }); return { data: data || [] }; },
+	create: async (obj) => { const { data } = await supabase.from('system_messages').insert(obj).select().single(); return { data }; },
+	update: async (id, updates) => { const { data } = await supabase.from('system_messages').update(updates).eq('id', id).select().single(); return { data }; },
+	delete: async (id) => { await supabase.from('system_messages').delete().eq('id', id); return { data: null }; },
+},
     PricingConfig: {
       list: async () => { const { data } = await supabase.from('pricing_config').select('*'); return data || []; },
     },
