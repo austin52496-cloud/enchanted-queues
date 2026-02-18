@@ -108,28 +108,40 @@ function generateDailyForecast(ride, historicalData, forecastDate, parkHours) {
 // AI-powered insight for the forecast (calls Claude API)
 async function getAIForecastInsight(ride, forecastData, forecastDate) {
   try {
-    const dayName = forecastDate.toLocaleDateString('en-US', { weekday: 'long' });
-    const monthName = forecastDate.toLocaleDateString('en-US', { month: 'long' });
-    const bestSlot = forecastData.reduce((min, d) => d.wait < min.wait ? d : min, forecastData[0]);
-    const peakSlot = forecastData.reduce((max, d) => d.wait > max.wait ? d : max, forecastData[0]);
-    const avgWait = Math.round(forecastData.reduce((s, d) => s + d.wait, 0) / forecastData.length);
-
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call our new dynamic AI tip Edge Function
+    const resp = await fetch("https://sviblotdflujritawqem.supabase.co/functions/v1/generateAITip", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [{
-          role: "user",
-          content: `You are a Disney World expert. Give a 2-sentence actionable tip for riding ${ride.name} on ${dayName} in ${monthName}. Key data: best time is ${bestSlot.hour} (~${bestSlot.wait} min), peak is ${peakSlot.hour} (~${peakSlot.wait} min), avg wait is ${avgWait} min. Be specific, friendly, and practical. No fluff.`
-        }]
-      })
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2aWJsb3RkZmx1anJpdGF3cWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDAzOTUsImV4cCI6MjA4NjkxNjM5NX0.VmJhHUmO7JmL4NFsZWMHLWcdfqS1DCSN7XM_00kdVUQ"
+      },
+      body: JSON.stringify({ rideId: ride.id })
     });
+    
+    if (!resp.ok) {
+      console.error('AI tip fetch failed:', resp.status);
+      return getFallbackTip(ride, forecastData);
+    }
+    
     const data = await resp.json();
-    return data.content?.[0]?.text || null;
-  } catch {
-    return null;
+    return data.tip || getFallbackTip(ride, forecastData);
+  } catch (error) {
+    console.error('AI tip error:', error);
+    return getFallbackTip(ride, forecastData);
+  }
+}
+
+// Fallback tip if Edge Function fails
+function getFallbackTip(ride, forecastData) {
+  const bestSlot = forecastData.reduce((min, d) => d.wait < min.wait ? d : min, forecastData[0]);
+  const currentWait = ride.current_wait_minutes || 0;
+  
+  if (currentWait < 20) {
+    return `🎉 Perfect timing! ${ride.name} has a short wait right now. Jump in line!`;
+  } else if (bestSlot && bestSlot.wait < currentWait - 10) {
+    return `⏰ Best time to ride is around ${bestSlot.hour} with an estimated ${bestSlot.wait} min wait. Plan accordingly!`;
+  } else {
+    return `💡 ${ride.name} is popular today. Consider using Lightning Lane or visiting during meal times for shorter waits.`;
   }
 }
 
