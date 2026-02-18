@@ -19,6 +19,12 @@ const typeConfig = {
 };
 
 export default function RideCard({ ride, index, history = [], isPremium = false }) {
+  // Safety check - return null if ride is undefined
+  if (!ride) {
+    console.error('RideCard received undefined ride');
+    return null;
+  }
+
   const type = typeConfig[ride.type] || typeConfig.family;
   const isClosed = ride.is_open === false;
   const currentWait = isClosed ? 0 : (ride.current_wait_minutes || ride.avg_wait_minutes || 0);
