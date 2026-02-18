@@ -40,6 +40,12 @@ export default function WaitTimeChart({
   currentWait, 
   rideIsOpen = true 
 }) {
+  console.log('WaitTimeChart received:', {
+    historicalData: data,
+    aiForecast: aiForecast,
+    fallbackForecast: fallbackForecast
+  });
+
   // Use AI forecast if available, otherwise fallback
   const forecastData = aiForecast || fallbackForecast.filter(f => !f.isHistorical);
   
@@ -85,6 +91,9 @@ export default function WaitTimeChart({
     };
     return parseHour(a.hour) - parseHour(b.hour);
   });
+
+  console.log('Final chartData:', chartData);
+  console.log('Historical averages:', historicalAverages);
 
   if (chartData.length === 0) {
     return (
