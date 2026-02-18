@@ -219,18 +219,21 @@ export default function Admin() {
   };
 
   const createNewsSource = async () => {
+    console.log('Creating news source:', newSource);
+    
     if (!newSource.name || !newSource.url) {
       alert('Name and URL required');
       return;
     }
 
     try {
-      await base44.entities.NewsSource.create(newSource);
+      const result = await base44.entities.NewsSource.create(newSource);
+      console.log('Created successfully:', result);
       setNewSource({ name: '', url: '', category: 'news' });
       loadData();
     } catch (error) {
       console.error('Failed to create news source:', error);
-      alert('Failed to create news source');
+      alert('Failed to create news source: ' + error.message);
     }
   };
 
@@ -306,12 +309,12 @@ export default function Admin() {
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
-			 <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">System Status</h2>
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">System Status</h2>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div>
-                    <h3 className="font-semibold">Wait Times Sync</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Wait Times Sync</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       Last synced: {stats.lastSyncTime 
                         ? new Date(stats.lastSyncTime).toLocaleString() 
                         : 'Never'}
@@ -326,15 +329,15 @@ export default function Admin() {
                   </button>
                 </div>
                 <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-				<div>
-				 <h3 className="font-semibold text-gray-900 dark:text-white">Wait Times Sync</h3>
-				 <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Stripe Webhook</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Status: ✅ Connected</p>
                   </div>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div>
-                    <h3 className="font-semibold">Database</h3>
-                    <p className="text-sm text-gray-600">Status: ✅ Supabase Connected</p>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Database</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Status: ✅ Supabase Connected</p>
                   </div>
                 </div>
               </div>
