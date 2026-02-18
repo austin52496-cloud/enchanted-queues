@@ -526,19 +526,23 @@ export default function Admin() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-4 py-3 text-left">Ride</th>
-                    <th className="px-4 py-3 text-left">Park</th>
-                    <th className="px-4 py-3 text-left">Current Wait</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Last Synced</th>
+                  <tr className="bg-gray-100 dark:bg-gray-700">
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Ride</th>
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Park</th>
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Current Wait</th>
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Status</th>
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Last Synced</th>
+                    <th className="px-4 py-3 text-left text-gray-900 dark:text-white">Visibility</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rides.map((ride) => (
-                    <tr key={ride.id} className="border-b">
-                      <td className="px-4 py-3 font-semibold">{ride.name}</td>
-                      <td className="px-4 py-3">{ride.park_name}</td>
+                    <tr key={ride.id} className={`border-b dark:border-gray-700 ${ride.is_hidden ? 'opacity-50' : ''}`}>
+                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                        {ride.name}
+                        {ride.is_hidden && <span className="ml-2 text-xs text-red-600">(Hidden)</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900 dark:text-white">{ride.park_name}</td>
                       <td className="px-4 py-3">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           ride.current_wait_minutes === null ? 'bg-gray-100 text-gray-800' :
@@ -557,18 +561,39 @@ export default function Admin() {
                           <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">Closed</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                         {ride.last_synced_at ? (
                           <>
                             {new Date(ride.last_synced_at).toLocaleString()}
                             <br />
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
                               ({Math.round((Date.now() - new Date(ride.last_synced_at)) / 60000)} min ago)
                             </span>
                           </>
                         ) : (
                           'Never'
                         )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await supabase.from('rides')
+                                .update({ is_hidden: !ride.is_hidden })
+                                .eq('id', ride.id);
+                              loadData();
+                            } catch (error) {
+                              console.error('Error toggling visibility:', error);
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-lg font-semibold transition ${
+                            ride.is_hidden
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-600 text-white hover:bg-gray-700'
+                          }`}
+                        >
+                          {ride.is_hidden ? 'Show' : 'Hide'}
+                        </button>
                       </td>
                     </tr>
                   ))}
