@@ -1,21 +1,29 @@
 import React from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from "recharts";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const historical = payload.find(p => p.dataKey === 'actualWait');
+    const forecast = payload.find(p => p.dataKey === 'forecastWait');
+    
     return (
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl px-4 py-3">
-        <p className="text-sm font-bold text-slate-900 dark:text-white">{label}</p>
-        <p className="text-2xl font-bold text-violet-600 dark:text-violet-400 mt-1">{data.wait} min</p>
-        {data.isHistorical && (
-          <p className="text-xs text-violet-500 dark:text-violet-400 mt-0.5 font-medium">Historical Data</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">{label}</p>
+        
+        {historical?.value != null && (
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-sm bg-slate-400 dark:bg-slate-500" />
+            <span className="text-xs text-slate-600 dark:text-slate-400">Actual:</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">{historical.value} min</span>
+          </div>
         )}
-        {!data.isHistorical && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">AI Forecast</p>
-        )}
-        {data.crowd && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 capitalize">Crowd: {data.crowd}</p>
+        
+        {forecast?.value != null && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm bg-violet-500" />
+            <span className="text-xs text-slate-600 dark:text-slate-400">AI Forecast:</span>
+            <span className="text-lg font-bold text-violet-600 dark:text-violet-400">{forecast.value} min</span>
+          </div>
         )}
       </div>
     );
@@ -23,128 +31,186 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function WaitTimeChart({ data, height = 280, currentHour, currentWait, rideIsOpen = true }) {
-  if (!data || data.length === 0) return null;
+export default function WaitTimeChart({ 
+  data = [], 
+  aiForecast = null,
+  height = 320, 
+  currentHour, 
+  currentWait, 
+  rideIsOpen = true 
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[320px] flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+        <p className="text-slate-500 dark:text-slate-400">No data available</p>
+      </div>
+    );
+  }
 
-  // Blend historical and forecast into continuous line
-  const processedData = data.map(d => ({
-    ...d,
-    wait: d.wait,
-  }));
+  // Combine historical and AI forecast data
+  const chartData = data.map((item, index) => {
+    const hour = item.hour;
+    const isHistorical = item.isHistorical;
+    
+    // Find matching AI forecast data
+    const aiForecastPoint = aiForecast?.find(f => f.hour === hour);
+    
+    return {
+      hour: hour,
+      actualWait: isHistorical ? item.wait : null, // Only show actual for historical
+      forecastWait: !isHistorical ? item.wait : (aiForecastPoint?.wait || null), // Show AI forecast for future
+      isHistorical: isHistorical,
+      isDown: item.isDown
+    };
+  });
 
-  // Find the transition point based on current hour
-  const currentIndex = currentHour ? data.findIndex(d => d.hour === currentHour) : data.findIndex(d => !d.isHistorical);
-  const transitionPercent = currentIndex >= 0 ? ((currentIndex + 1) / data.length) * 100 : 100;
+  // Calculate stats
+  const validData = chartData.filter(d => d.actualWait != null || d.forecastWait != null);
+  const allWaits = validData.map(d => d.actualWait || d.forecastWait);
+  const maxWait = Math.max(...allWaits, currentWait || 0);
+  const minWait = Math.min(...allWaits.filter(w => w > 0));
+  
+  // Find best time from forecast
+  const forecastPoints = chartData.filter(d => d.forecastWait != null);
+  const bestTime = forecastPoints.length > 0 
+    ? forecastPoints.reduce((min, d) => d.forecastWait < min.forecastWait ? d : min, forecastPoints[0])
+    : null;
 
-  const validData = data.filter(d => d.wait != null && !d.isDown);
-  const maxWait = validData.length > 0 ? Math.max(...validData.map(d => d.wait)) : 100;
-  const minWait = validData.length > 0 ? Math.min(...validData.map(d => d.wait)) : 0;
-  const bestTime = validData.length > 0 ? validData.reduce((min, d) => d.wait < min.wait ? d : min, validData[0]) : null;
-  const hasDowntime = data.some(d => d.isDown);
+  // Find current hour index for "NOW" marker
+  const currentIndex = currentHour ? chartData.findIndex(d => d.hour === currentHour) : -1;
 
   return (
     <div className="w-full">
       <ResponsiveContainer width="100%" height={height}>
-         <AreaChart data={processedData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+        <LineChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 10 }}>
           <defs>
-            <linearGradient id="blendedLineGradient" x1="0" y1="0" x2="100%" y2="0">
-              <stop offset="0%" stopColor="#C4B5FD" />
-              <stop offset={`${transitionPercent}%`} stopColor="#C4B5FD" />
-              <stop offset={`${transitionPercent}%`} stopColor="#7C3AED" />
-              <stop offset="100%" stopColor="#7C3AED" />
+            {/* Gradient for AI forecast line */}
+            <linearGradient id="forecastGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#8B5CF6" />
+              <stop offset="100%" stopColor="#A78BFA" />
             </linearGradient>
-            <linearGradient id="blendedFillGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#A78BFA" stopOpacity={0.4} />
-              <stop offset="50%" stopColor="#A78BFA" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#A78BFA" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="downFillGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#FCA5A5" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#FCA5A5" stopOpacity={0} />
+            
+            {/* Fill gradient for forecast area */}
+            <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            stroke="#E2E8F0" 
+            strokeOpacity={0.5}
+            vertical={false} 
+          />
+          
           <XAxis 
             dataKey="hour" 
             tick={{ fontSize: 11, fill: "#94A3B8" }}
             tickLine={false}
-            axisLine={{ stroke: "#E2E8F0" }}
+            axisLine={{ stroke: "#CBD5E1" }}
+            interval="preserveStartEnd"
           />
+          
           <YAxis 
             tick={{ fontSize: 11, fill: "#94A3B8" }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(val) => `${val}m`}
+            domain={[0, Math.ceil(maxWait * 1.1 / 10) * 10]}
+            tickFormatter={(val) => `${val}`}
+            label={{ 
+              value: 'Wait (min)', 
+              angle: -90, 
+              position: 'insideLeft',
+              style: { fontSize: 11, fill: '#94A3B8' }
+            }}
           />
+          
           <Tooltip content={<CustomTooltip />} />
 
-          {currentWait != null && (
+          {/* Current wait reference line */}
+          {currentWait != null && currentIndex >= 0 && (
             <ReferenceLine 
-              y={currentWait} 
-              stroke="#EF4444" 
-              strokeWidth={2.5}
+              x={chartData[currentIndex].hour}
+              stroke="#10B981" 
+              strokeWidth={2}
+              strokeDasharray="5 5"
               label={{ 
-                value: `Actual: ${currentWait} min`, 
-                position: "insideTopRight", 
-                fill: "#EF4444", 
+                value: '← NOW', 
+                position: 'top',
+                fill: "#10B981", 
                 fontSize: 11, 
-                fontWeight: 700,
-                offset: 10
+                fontWeight: 700
               }}
             />
           )}
+
+          {/* Best time marker */}
           {bestTime && (
             <ReferenceLine 
               x={bestTime.hour} 
               stroke="#10B981" 
               strokeDasharray="3 3"
-              strokeWidth={1}
-            />
-          )}
-          {/* Historical data area */}
-          <Area
-            type="monotone"
-            dataKey="wait"
-            stroke="url(#blendedLineGradient)"
-            strokeWidth={3}
-            fill="url(#blendedFillGradient)"
-            dot={false}
-            isAnimationActive={false}
-            activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }}
-          />
-          {/* Ride down indicator */}
-          {hasDowntime && (
-            <Area
-              type="stepAfter"
-              dataKey={(d) => d.isDown ? 50 : null}
-              stroke="#EF4444"
-              strokeWidth={2}
-              fill="url(#downFillGradient)"
-              dot={false}
-              isAnimationActive={false}
+              strokeWidth={1.5}
+              strokeOpacity={0.5}
             />
           )}
 
-        </AreaChart>
+          {/* Historical data line (gray) */}
+          <Line
+            type="monotone"
+            dataKey="actualWait"
+            stroke="#94A3B8"
+            strokeWidth={3}
+            dot={false}
+            connectNulls={false}
+            isAnimationActive={true}
+            animationDuration={800}
+            strokeLinecap="round"
+          />
+
+          {/* AI Forecast line (purple gradient) */}
+          <Line
+            type="monotone"
+            dataKey="forecastWait"
+            stroke="url(#forecastGradient)"
+            strokeWidth={3}
+            dot={false}
+            connectNulls={true}
+            isAnimationActive={true}
+            animationDuration={1000}
+            strokeLinecap="round"
+            strokeDasharray="5 5"
+          />
+
+        </LineChart>
       </ResponsiveContainer>
-      <div className="mt-3 space-y-2">
+
+      {/* Legend and stats */}
+      <div className="mt-4 space-y-3">
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-6 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-1 bg-slate-400 dark:bg-slate-500 rounded" />
+            <span className="text-slate-600 dark:text-slate-400 font-medium">Historical Data</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-1 bg-gradient-to-r from-violet-600 to-violet-400 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #8B5CF6 0px, #8B5CF6 5px, transparent 5px, transparent 10px)' }} />
+            <span className="text-slate-600 dark:text-slate-400 font-medium">AI Forecast</span>
+          </div>
+        </div>
+
+        {/* Best time badge */}
         {bestTime && (
           <div className="flex justify-center">
-            <div className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-full px-3 py-1 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-              Best time: {bestTime.hour} ({bestTime.wait} min)
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 text-emerald-700 dark:text-emerald-400 rounded-full px-4 py-2 text-sm font-semibold border border-emerald-200 dark:border-emerald-800 shadow-sm">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              <span>Best time: {bestTime.hour} (~{bestTime.forecastWait} min wait)</span>
             </div>
           </div>
         )}
-        {hasDowntime && (
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400 rounded-full px-3 py-1 text-xs font-medium border border-red-200 dark:border-red-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 dark:bg-red-400" />
-              Ride was closed during operating hours
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );
