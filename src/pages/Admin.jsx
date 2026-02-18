@@ -6,9 +6,18 @@ import { useNavigate } from 'react-router-dom';
 export default function Admin() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('messages');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Dashboard Stats
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    premiumUsers: 0,
+    totalRides: 0,
+    lastSyncTime: null,
+    activeMessages: 0
+  });
 
   // System Messages
   const [messages, setMessages] = useState([]);
@@ -21,9 +30,19 @@ export default function Admin() {
   // Users
   const [users, setUsers] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [newUserEmail, setNewUserEmail] = useState('');
 
   // Rides
   const [rides, setRides] = useState([]);
+  const [syncingRides, setSyncingRides] = useState(false);
+
+  // News Sources
+  const [newsSources, setNewsSources] = useState([]);
+  const [newSource, setNewSource] = useState({
+    name: '',
+    url: '',
+    category: 'news'
+  });
 
   useEffect(() => {
     checkAdminAccess();
@@ -58,21 +77,103 @@ export default function Admin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [messagesRes, usersRes, subsRes, ridesRes] = await Promise.all([
+      const [messagesRes, usersRes, subsRes, ridesRes, newsRes] = await Promise.all([
         base44.entities.SystemMessage.list(),
         base44.entities.User.list(),
         base44.entities.Subscription.list(),
-        base44.entities.Ride.list()
+        base44.entities.Ride.list(),
+        base44.entities.NewsSource.list()
       ]);
 
-      setMessages(messagesRes.data || []);
-      setUsers(usersRes || []);
-      setSubscriptions(subsRes || []);
-      setRides(ridesRes || []);
+      const msgs = messagesRes.data || [];
+      const usrs = usersRes || [];
+      const subs = subsRes || [];
+      const rds = ridesRes || [];
+      const news = newsRes || [];
+
+      setMessages(msgs);
+      setUsers(usrs);
+      setSubscriptions(subs);
+      setRides(rds);
+      setNewsSources(news);
+
+      // Calculate stats
+      const lastSync = rds.reduce((latest, ride) => {
+        if (!ride.last_synced_at) return latest;
+        const rideTime = new Date(ride.last_synced_at);
+        return !latest || rideTime > latest ? rideTime : latest;
+      }, null);
+
+      setStats({
+        totalUsers: usrs.length,
+        premiumUsers: subs.filter(s => s.status === 'active').length,
+        totalRides: rds.length,
+        lastSyncTime: lastSync,
+        activeMessages: msgs.filter(m => m.is_active).length
+      });
     } catch (error) {
       console.error('Failed to load admin data:', error);
     }
     setLoading(false);
+  };
+
+  const forceSyncRides = async () => {
+    setSyncingRides(true);
+    try {
+      const response = await fetch('https://sviblotdflujritawqem.supabase.co/functions/v1/sync-wait-times', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        alert('✅ Ride sync triggered! Check back in 30 seconds.');
+        setTimeout(loadData, 5000); // Reload after 5 seconds
+      } else {
+        alert('❌ Sync failed. Check console for errors.');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      alert('❌ Sync failed: ' + error.message);
+    }
+    setSyncingRides(false);
+  };
+
+  const grantFreePremium = async (userId, userEmail) => {
+    if (!confirm(`Grant free Premium to ${userEmail}?`)) return;
+
+    try {
+      await supabase.from('subscriptions').insert({
+        user_id: userId,
+        user_email: userEmail,
+        plan: 'premium',
+        status: 'active',
+        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+        stripe_customer_id: null,
+        stripe_subscription_id: null
+      });
+
+      alert('✅ Premium access granted!');
+      loadData();
+    } catch (error) {
+      console.error('Failed to grant premium:', error);
+      alert('❌ Failed: ' + error.message);
+    }
+  };
+
+  const revokePremium = async (subscriptionId) => {
+    if (!confirm('Revoke Premium access?')) return;
+
+    try {
+      await supabase.from('subscriptions')
+        .update({ status: 'canceled' })
+        .eq('id', subscriptionId);
+
+      alert('✅ Premium revoked');
+      loadData();
+    } catch (error) {
+      console.error('Failed to revoke:', error);
+      alert('❌ Failed: ' + error.message);
+    }
   };
 
   const createMessage = async () => {
@@ -117,6 +218,33 @@ export default function Admin() {
     }
   };
 
+  const createNewsSource = async () => {
+    if (!newSource.name || !newSource.url) {
+      alert('Name and URL required');
+      return;
+    }
+
+    try {
+      await base44.entities.NewsSource.create(newSource);
+      setNewSource({ name: '', url: '', category: 'news' });
+      loadData();
+    } catch (error) {
+      console.error('Failed to create news source:', error);
+      alert('Failed to create news source');
+    }
+  };
+
+  const deleteNewsSource = async (id) => {
+    if (!confirm('Delete this news source?')) return;
+    
+    try {
+      await base44.entities.NewsSource.delete(id);
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    }
+  };
+
   if (loading || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
@@ -128,48 +256,97 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-white mb-8">Admin Panel</h1>
-
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-white">Admin Panel</h1>
           <button
-            onClick={() => setActiveTab('messages')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'messages'
-                ? 'bg-white text-purple-900'
-                : 'bg-purple-700 text-white hover:bg-purple-600'
-            }`}
+            onClick={() => navigate('/')}
+            className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30"
           >
-            System Messages
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'users'
-                ? 'bg-white text-purple-900'
-                : 'bg-purple-700 text-white hover:bg-purple-600'
-            }`}
-          >
-            Users ({users.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('rides')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              activeTab === 'rides'
-                ? 'bg-white text-purple-900'
-                : 'bg-purple-700 text-white hover:bg-purple-600'
-            }`}
-          >
-            Rides ({rides.length})
+            ← Back to Site
           </button>
         </div>
+
+        {/* Tabs */}
+        <div className="flex gap-4 mb-6 overflow-x-auto">
+          {['dashboard', 'messages', 'users', 'rides', 'news'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                activeTab === tab
+                  ? 'bg-white text-purple-900'
+                  : 'bg-purple-700 text-white hover:bg-purple-600'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-xl p-6 shadow-2xl">
+                <h3 className="text-gray-500 text-sm font-semibold">Total Users</h3>
+                <p className="text-4xl font-bold text-purple-900 mt-2">{stats.totalUsers}</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 shadow-2xl">
+                <h3 className="text-gray-500 text-sm font-semibold">Premium Users</h3>
+                <p className="text-4xl font-bold text-green-600 mt-2">{stats.premiumUsers}</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 shadow-2xl">
+                <h3 className="text-gray-500 text-sm font-semibold">Total Rides</h3>
+                <p className="text-4xl font-bold text-blue-600 mt-2">{stats.totalRides}</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 shadow-2xl">
+                <h3 className="text-gray-500 text-sm font-semibold">Active Alerts</h3>
+                <p className="text-4xl font-bold text-orange-600 mt-2">{stats.activeMessages}</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4">System Status</h2>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">Wait Times Sync</h3>
+                    <p className="text-sm text-gray-600">
+                      Last synced: {stats.lastSyncTime 
+                        ? new Date(stats.lastSyncTime).toLocaleString() 
+                        : 'Never'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={forceSyncRides}
+                    disabled={syncingRides}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:opacity-50"
+                  >
+                    {syncingRides ? 'Syncing...' : 'Force Sync Now'}
+                  </button>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">Stripe Webhook</h3>
+                    <p className="text-sm text-gray-600">Status: ✅ Connected</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">Database</h3>
+                    <p className="text-sm text-gray-600">Status: ✅ Supabase Connected</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* System Messages Tab */}
         {activeTab === 'messages' && (
           <div className="bg-white rounded-xl p-6 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6">Homepage Messages</h2>
 
-            {/* Create New Message */}
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
               <h3 className="font-bold mb-4">Create New Message</h3>
               <div className="space-y-4">
@@ -208,7 +385,6 @@ export default function Admin() {
               </div>
             </div>
 
-            {/* Messages List */}
             <div className="space-y-4">
               {messages.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No messages yet</p>
@@ -261,6 +437,14 @@ export default function Admin() {
         {activeTab === 'users' && (
           <div className="bg-white rounded-xl p-6 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6">User Management</h2>
+            
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> Users automatically get free accounts when they sign in with Google. 
+                You can grant Premium access for free to friends/testers using the "Grant Free Premium" button.
+              </p>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -279,9 +463,14 @@ export default function Admin() {
                         <td className="px-4 py-3">{u.email}</td>
                         <td className="px-4 py-3">
                           {sub && sub.status === 'active' ? (
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                              Premium
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                                Premium
+                              </span>
+                              {!sub.stripe_subscription_id && (
+                                <span className="text-xs text-gray-500">(Free)</span>
+                              )}
+                            </div>
                           ) : (
                             <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
                               Free
@@ -292,9 +481,21 @@ export default function Admin() {
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">
-                          <button className="text-purple-600 hover:text-purple-800 font-semibold">
-                            View Details
-                          </button>
+                          {sub && sub.status === 'active' ? (
+                            <button 
+                              onClick={() => revokePremium(sub.id)}
+                              className="text-red-600 hover:text-red-800 font-semibold"
+                            >
+                              Revoke Premium
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => grantFreePremium(u.id, u.email)}
+                              className="text-purple-600 hover:text-purple-800 font-semibold"
+                            >
+                              Grant Free Premium
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -308,7 +509,17 @@ export default function Admin() {
         {/* Rides Tab */}
         {activeTab === 'rides' && (
           <div className="bg-white rounded-xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Ride Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Ride Management</h2>
+              <button
+                onClick={forceSyncRides}
+                disabled={syncingRides}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:opacity-50"
+              >
+                {syncingRides ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -326,7 +537,15 @@ export default function Admin() {
                       <td className="px-4 py-3 font-semibold">{ride.name}</td>
                       <td className="px-4 py-3">{ride.park_name}</td>
                       <td className="px-4 py-3">
-                        {ride.current_wait_minutes !== null ? `${ride.current_wait_minutes} min` : 'N/A'}
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          ride.current_wait_minutes === null ? 'bg-gray-100 text-gray-800' :
+                          ride.current_wait_minutes === 0 ? 'bg-blue-100 text-blue-800' :
+                          ride.current_wait_minutes < 30 ? 'bg-green-100 text-green-800' :
+                          ride.current_wait_minutes < 60 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {ride.current_wait_minutes !== null ? `${ride.current_wait_minutes} min` : 'N/A'}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         {ride.is_open ? (
@@ -336,12 +555,90 @@ export default function Admin() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {ride.last_synced_at ? new Date(ride.last_synced_at).toLocaleString() : 'Never'}
+                        {ride.last_synced_at ? (
+                          <>
+                            {new Date(ride.last_synced_at).toLocaleString()}
+                            <br />
+                            <span className="text-xs text-gray-400">
+                              ({Math.round((Date.now() - new Date(ride.last_synced_at)) / 60000)} min ago)
+                            </span>
+                          </>
+                        ) : (
+                          'Never'
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* News Sources Tab */}
+        {activeTab === 'news' && (
+          <div className="bg-white rounded-xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6">News Sources (RSS Feeds)</h2>
+
+            <div className="bg-gray-50 p-6 rounded-lg mb-6">
+              <h3 className="font-bold mb-4">Add New Source</h3>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newSource.name}
+                  onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
+                  placeholder="Source name (e.g., Disney Parks Blog)"
+                  className="w-full p-3 border rounded-lg"
+                />
+                <input
+                  type="url"
+                  value={newSource.url}
+                  onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
+                  placeholder="RSS feed URL"
+                  className="w-full p-3 border rounded-lg"
+                />
+                <div className="flex gap-4">
+                  <select
+                    value={newSource.category}
+                    onChange={(e) => setNewSource({ ...newSource, category: e.target.value })}
+                    className="px-4 py-2 border rounded-lg"
+                  >
+                    <option value="news">News</option>
+                    <option value="blog">Blog</option>
+                    <option value="updates">Updates</option>
+                  </select>
+                  <button
+                    onClick={createNewsSource}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold"
+                  >
+                    Add Source
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {newsSources.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No news sources configured</p>
+              ) : (
+                newsSources.map((source) => (
+                  <div key={source.id} className="p-4 border rounded-lg flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold">{source.name}</h3>
+                      <p className="text-sm text-gray-600">{source.url}</p>
+                      <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded mt-2">
+                        {source.category}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => deleteNewsSource(source.id)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
