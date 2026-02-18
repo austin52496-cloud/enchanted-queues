@@ -85,32 +85,29 @@ export default function RideCard({ ride, index, history = [], isPremium = false 
               )}
             </div>
 
-
-            {chartData.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Wait trend</span>
-                      {history.length > 1 && history[history.length - 1].wait_minutes > history[0].wait_minutes ? (
-                        <TrendingUp className="w-3 h-3 text-red-500" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3 text-emerald-500" />
-                      )}
-                    </div>
-                    <div className="h-6 bg-slate-200/50 dark:bg-slate-700/30 rounded-full overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full rounded-full transition-all duration-300",
-                          currentWait <= 20 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
-                          currentWait <= 45 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
-                          currentWait <= 70 ? "bg-gradient-to-r from-orange-500 to-orange-400" :
-                          "bg-gradient-to-r from-red-500 to-red-400"
-                        )}
-                        style={{ width: `${Math.min((currentWait / 120) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
+            {/* Wait Time Progress Bar - Always show for open rides */}
+            {!isClosed && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Wait trend</span>
+                  {history.length > 1 && history[history.length - 1].wait_minutes > history[0].wait_minutes ? (
+                    <TrendingUp className="w-3 h-3 text-red-500" />
+                  ) : history.length > 1 ? (
+                    <TrendingDown className="w-3 h-3 text-emerald-500" />
+                  ) : null}
+                </div>
+                <div className="h-2 bg-slate-200/50 dark:bg-slate-700/30 rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      currentWait === 0 ? "bg-blue-500" :
+                      currentWait <= 30 ? "bg-gradient-to-r from-green-500 to-green-400" :
+                      currentWait <= 60 ? "bg-gradient-to-r from-yellow-500 to-yellow-400" :
+                      currentWait <= 90 ? "bg-gradient-to-r from-orange-500 to-orange-400" :
+                      "bg-gradient-to-r from-red-500 to-red-400"
+                    )}
+                    style={{ width: `${Math.min((currentWait / 120) * 100, 100)}%` }}
+                  />
                 </div>
               </div>
             )}

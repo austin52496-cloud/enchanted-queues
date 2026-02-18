@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, Filter, MapPin, Clock, Zap, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, Filter, MapPin, Clock, Zap, RefreshCw, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,34 @@ import { createPageUrl } from "@/utils";
 import RideCard from "@/components/RideCard";
 import ParkHoursCalendar from "@/components/ParkHoursCalendar";
 import { cn } from "@/lib/utils";
+
+// Wait Time Progress Bar Component
+function WaitTimeBar({ wait }) {
+  const maxWait = 120;
+  const percentage = Math.min((wait / maxWait) * 100, 100);
+  
+  const getColor = () => {
+    if (wait === 0) return 'bg-blue-500';
+    if (wait < 30) return 'bg-green-500';
+    if (wait < 60) return 'bg-yellow-500';
+    if (wait < 90) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-slate-500 dark:text-slate-400">Wait trend</span>
+      </div>
+      <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${getColor()} transition-all duration-500`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const rideTypes = [
   { key: "all", label: "All" },
@@ -336,18 +364,44 @@ export default function ParkDetail() {
          return (
            <div className="space-y-4 mb-8">
              {parkOpen ? (
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
-                   <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{openRides.length}</p>
-                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Open Rides</p>
+               <div className="space-y-4">
+                 {/* Today's Stats - Large Cards */}
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/60 dark:border-slate-700/60">
+                     <div className="flex items-center gap-2 mb-2">
+                       <Clock className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                       <span className="text-sm text-slate-600 dark:text-slate-400">Today's Avg Wait</span>
+                     </div>
+                     <div className="text-4xl font-bold text-slate-900 dark:text-white">{avgWait} min</div>
+                   </div>
+                   
+                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/60 dark:border-slate-700/60">
+                     <div className="flex items-center gap-2 mb-2">
+                       <TrendingUp className="w-5 h-5 text-red-500" />
+                       <span className="text-sm text-slate-600 dark:text-slate-400">Today's Longest Wait</span>
+                     </div>
+                     <div className="text-4xl font-bold text-red-600">{longestWait} min</div>
+                   </div>
                  </div>
-                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
-                   <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{shortestWait}</p>
-                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Shortest Wait</p>
+
+                 {/* Quick Stats Row */}
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
+                     <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{openRides.length}</p>
+                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Open Rides</p>
+                   </div>
+                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
+                     <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{shortestWait}</p>
+                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Shortest Wait</p>
+                   </div>
                  </div>
-                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
-                   <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{avgWait}</p>
-                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Average Wait</p>
+
+                 {/* Last Synced */}
+                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                   <RefreshCw className="w-4 h-4" />
+                   <span>Last synced {formatLastSync(lastSyncTime)}</span>
+                 </div>
+               </div>
                  </div>
                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 text-center">
                    <p className="text-2xl font-bold text-red-500 dark:text-red-400">{longestWait}</p>
@@ -440,6 +494,7 @@ export default function ParkDetail() {
                         index={i}
                         history={allHistory[ride.id] || []}
                         isPremium={isPremium}
+                        waitBar={<WaitTimeBar wait={ride.current_wait_minutes || 0} />}
                       />
                     ))}
                   </div>
@@ -455,6 +510,7 @@ export default function ParkDetail() {
                   index={i}
                   history={allHistory[ride.id] || []}
                   isPremium={isPremium}
+                  waitBar={<WaitTimeBar wait={ride.current_wait_minutes || 0} />}
                 />
               ))}
             </div>
