@@ -632,8 +632,9 @@ export default function RideDetail() {
                   </div>
                 </div>
                 <WaitTimeChart 
-                   data={forecast} 
+                   data={historicalData}
                    aiForecast={aiForecastData}
+                   fallbackForecast={forecast}
                    currentHour={currentHourLabel}
                    currentWait={isToday && ride.current_wait_minutes != null ? ride.current_wait_minutes : null}
                    rideIsOpen={ride.is_open !== false}

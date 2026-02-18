@@ -32,37 +32,67 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function WaitTimeChart({ 
-  data = [], 
-  aiForecast = null,
+  data = [],  // Historical actual data
+  aiForecast = null,  // AI forecast from Edge Function
+  fallbackForecast = [],  // Fallback forecast if AI fails
   height = 320, 
   currentHour, 
   currentWait, 
   rideIsOpen = true 
 }) {
-  if (!data || data.length === 0) {
+  // Use AI forecast if available, otherwise fallback
+  const forecastData = aiForecast || fallbackForecast.filter(f => !f.isHistorical);
+  
+  // Group historical data by hour for easier matching
+  const historicalByHour = {};
+  data.forEach(item => {
+    const hour12 = item.hour === 0 ? 12 : item.hour > 12 ? item.hour - 12 : item.hour;
+    const ampm = item.hour >= 12 ? 'PM' : 'AM';
+    const hourLabel = `${hour12} ${ampm}`;
+    
+    if (!historicalByHour[hourLabel]) {
+      historicalByHour[hourLabel] = [];
+    }
+    historicalByHour[hourLabel].push(item.wait);
+  });
+
+  // Average historical data by hour
+  const historicalAverages = {};
+  Object.keys(historicalByHour).forEach(hour => {
+    const waits = historicalByHour[hour];
+    historicalAverages[hour] = Math.round(waits.reduce((a, b) => a + b, 0) / waits.length);
+  });
+
+  // Get all unique hours from both datasets
+  const allHours = new Set([
+    ...Object.keys(historicalAverages),
+    ...forecastData.map(f => f.hour)
+  ]);
+
+  // Combine into chart data
+  const chartData = Array.from(allHours).map(hour => ({
+    hour: hour,
+    actualWait: historicalAverages[hour] || null,
+    forecastWait: forecastData.find(f => f.hour === hour)?.wait || null,
+  })).sort((a, b) => {
+    // Sort by time of day
+    const parseHour = (h) => {
+      const [time, period] = h.split(' ');
+      let hour = parseInt(time);
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+      return hour;
+    };
+    return parseHour(a.hour) - parseHour(b.hour);
+  });
+
+  if (chartData.length === 0) {
     return (
       <div className="w-full h-[320px] flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
         <p className="text-slate-500 dark:text-slate-400">No data available</p>
       </div>
     );
   }
-
-  // Combine historical and AI forecast data
-  const chartData = data.map((item, index) => {
-    const hour = item.hour;
-    const isHistorical = item.isHistorical;
-    
-    // Find matching AI forecast data
-    const aiForecastPoint = aiForecast?.find(f => f.hour === hour);
-    
-    return {
-      hour: hour,
-      actualWait: isHistorical ? item.wait : null, // Only show actual for historical
-      forecastWait: !isHistorical ? item.wait : (aiForecastPoint?.wait || null), // Show AI forecast for future
-      isHistorical: isHistorical,
-      isDown: item.isDown
-    };
-  });
 
   // Calculate stats
   const validData = chartData.filter(d => d.actualWait != null || d.forecastWait != null);
