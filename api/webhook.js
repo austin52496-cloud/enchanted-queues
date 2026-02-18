@@ -17,6 +17,11 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+export default async function handler(req, res) {
+  console.log('🔔 WEBHOOK CALLED - Method:', req.method, 'Headers:', req.headers);
+  
+  // Handle GET/HEAD requests (for redirect testing)
+  if (req.method === 'GET' || req.method === 'HEAD') {
   if (req.method !== 'POST') {
     return res.status(405).end();
   }
