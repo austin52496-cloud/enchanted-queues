@@ -2,7 +2,6 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Clock, Zap, Star, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer } from "recharts";
-import CrowdBadge from "./CrowdBadge";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
