@@ -347,8 +347,8 @@ export default function Admin() {
 
         {/* System Messages Tab */}
         {activeTab === 'messages' && (
-          <div className="bg-white rounded-xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Homepage Messages</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Homepage Messages</h2>
 
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
               <h3 className="font-bold mb-4">Create New Message</h3>
@@ -438,8 +438,8 @@ export default function Admin() {
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div className="bg-white rounded-xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">User Management</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">User Management</h2>
             
             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
               <p className="text-sm text-blue-800">
@@ -511,9 +511,9 @@ export default function Admin() {
 
         {/* Rides Tab */}
         {activeTab === 'rides' && (
-          <div className="bg-white rounded-xl p-6 shadow-2xl">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Ride Management</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Ride Management</h2>
               <button
                 onClick={forceSyncRides}
                 disabled={syncingRides}
@@ -580,8 +580,8 @@ export default function Admin() {
 
         {/* News Sources Tab */}
         {activeTab === 'news' && (
-          <div className="bg-white rounded-xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">News Sources (RSS Feeds)</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">News Sources (RSS Feeds)</h2>
 
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
               <h3 className="font-bold mb-4">Add New Source</h3>
