@@ -350,21 +350,21 @@ export default function Admin() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Homepage Messages</h2>
 
-            <div className="bg-gray-50 p-6 rounded-lg mb-6">
-              <h3 className="font-bold mb-4">Create New Message</h3>
+            <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-6">
+              <h3 className="font-bold mb-4 text-gray-900 dark:text-white">Create New Message</h3>
               <div className="space-y-4">
                 <textarea
                   value={newMessage.message}
                   onChange={(e) => setNewMessage({ ...newMessage, message: e.target.value })}
                   placeholder="Enter message text..."
-                  className="w-full p-3 border rounded-lg"
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                   rows="3"
                 />
                 <div className="flex gap-4">
                   <select
                     value={newMessage.type}
                     onChange={(e) => setNewMessage({ ...newMessage, type: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
+                    className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                   >
                     <option value="info">Info (Blue)</option>
                     <option value="warning">Warning (Yellow)</option>
@@ -375,7 +375,7 @@ export default function Admin() {
                     type="datetime-local"
                     value={newMessage.expires_at}
                     onChange={(e) => setNewMessage({ ...newMessage, expires_at: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
+                    className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     placeholder="Expires at (optional)"
                   />
                   <button
@@ -583,28 +583,28 @@ export default function Admin() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">News Sources (RSS Feeds)</h2>
 
-            <div className="bg-gray-50 p-6 rounded-lg mb-6">
-              <h3 className="font-bold mb-4">Add New Source</h3>
+            <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-6">
+              <h3 className="font-bold mb-4 text-gray-900 dark:text-white">Add New Source</h3>
               <div className="space-y-4">
                 <input
                   type="text"
                   value={newSource.name}
                   onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
                   placeholder="Source name (e.g., Disney Parks Blog)"
-                  className="w-full p-3 border rounded-lg"
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 />
                 <input
                   type="url"
                   value={newSource.url}
                   onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
                   placeholder="RSS feed URL"
-                  className="w-full p-3 border rounded-lg"
+                  className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 />
                 <div className="flex gap-4">
                   <select
                     value={newSource.category}
                     onChange={(e) => setNewSource({ ...newSource, category: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
+                    className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
                   >
                     <option value="news">News</option>
                     <option value="blog">Blog</option>
