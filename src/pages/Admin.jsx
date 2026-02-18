@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { base44 } from '@/api/base44Client';
+import { base44, supabase } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 
 export default function Admin() {
@@ -36,12 +36,17 @@ export default function Admin() {
     }
 
     try {
-      const { data } = await base44.entities.User.filter({ id: user.id });
-      if (!data || !data[0]?.is_admin) {
+      const { data, error } = await supabase.from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error || !data?.is_admin) {
         alert('Access denied - Admin only');
         navigate('/');
         return;
       }
+      
       setIsAdmin(true);
       loadData();
     } catch (error) {
@@ -61,9 +66,9 @@ export default function Admin() {
       ]);
 
       setMessages(messagesRes.data || []);
-      setUsers(usersRes.data || []);
-      setSubscriptions(subsRes.data || []);
-      setRides(ridesRes.data || []);
+      setUsers(usersRes || []);
+      setSubscriptions(subsRes || []);
+      setRides(ridesRes || []);
     } catch (error) {
       console.error('Failed to load admin data:', error);
     }
