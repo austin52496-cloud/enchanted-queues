@@ -305,8 +305,8 @@ export default function Admin() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-4">System Status</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
+			 <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">System Status</h2>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                   <div>
@@ -325,10 +325,10 @@ export default function Admin() {
                     {syncingRides ? 'Syncing...' : 'Force Sync Now'}
                   </button>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">Stripe Webhook</h3>
-                    <p className="text-sm text-gray-600">Status: ✅ Connected</p>
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+				<div>
+				 <h3 className="font-semibold text-gray-900 dark:text-white">Wait Times Sync</h3>
+				 <p className="text-sm text-gray-600 dark:text-gray-300">
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
