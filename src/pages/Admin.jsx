@@ -122,7 +122,10 @@ export default function Admin() {
     try {
       const response = await fetch('https://sviblotdflujritawqem.supabase.co/functions/v1/sync-wait-times', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2aWJsb3RkZmx1anJpdGF3cWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDAzOTUsImV4cCI6MjA4NjkxNjM5NX0.VmJhHUmO7JmL4NFsZWMHLWcdfqS1DCSN7XM_00kdVUQ'
+        }
       });
       
       if (response.ok) {
