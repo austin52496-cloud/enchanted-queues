@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Bell, Mail, MessageSquare, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 
 export default function NotificationSettings({ favorite, onUpdate, isPremium, userPhoneNumber }) {
   const [notifyOnWaitDrop, setNotifyOnWaitDrop] = useState(favorite?.notify_on_wait_drop || false);
@@ -27,20 +27,27 @@ export default function NotificationSettings({ favorite, onUpdate, isPremium, us
 
   const updateMutation = useMutation({
     mutationFn: async (updates) => {
-      await onUpdate(updates);
+      const { error } = await supabase
+        .from('favorites')
+        .update(updates)
+        .eq('id', favorite?.id);
+      
+      if (error) throw error;
     },
     onMutate: async (updates) => {
-      await queryClient.cancelQueries({ queryKey: ["favorite", favorite?.id] });
-      const previous = queryClient.getQueryData(["favorite", favorite?.id]);
-      queryClient.setQueryData(["favorite", favorite?.id], { ...favorite, ...updates });
+      await queryClient.cancelQueries({ queryKey: ["favorite", favorite?.ride_id] });
+      const previous = queryClient.getQueryData(["favorite", favorite?.ride_id]);
+      queryClient.setQueryData(["favorite", favorite?.ride_id], { ...favorite, ...updates });
       return { previous };
     },
     onError: (err, updates, context) => {
-      queryClient.setQueryData(["favorite", favorite?.id], context.previous);
+      queryClient.setQueryData(["favorite", favorite?.ride_id], context.previous);
       toast.error("Failed to save settings");
+      console.error('Save error:', err);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favorite", favorite?.id] });
+      queryClient.invalidateQueries({ queryKey: ["favorite", favorite?.ride_id] });
+      queryClient.invalidateQueries({ queryKey: ["favorites"] }); // Refresh My Queues page
       toast.success("Notification settings saved!");
     },
   });
