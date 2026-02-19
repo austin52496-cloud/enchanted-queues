@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowLeft, Clock, Zap, Ruler, Star, Lightbulb, TrendingDown, TrendingUp, MapPin, Heart, RefreshCw, Calendar } from "lucide-react";
@@ -198,8 +199,17 @@ export default function RideDetail() {
     queryKey: ["favorite", rideId, user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const favs = await base44.entities.Favorite.filter({ user_email: user.email, item_id: rideId, item_type: "ride" });
-      return favs.length > 0 ? favs[0] : null;
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_email', user.email)
+        .eq('ride_id', rideId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Favorite query error:', error);
+      }
+      return data;
     },
     enabled: !!user?.email && !!rideId,
   });
@@ -296,29 +306,44 @@ export default function RideDetail() {
         toast.error("Upgrade to Premium to save favorites");
         return;
       }
+      
       if (isFavorite) {
-        if (favoriteData) await base44.entities.Favorite.delete(favoriteData.id);
+        // Delete favorite
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('id', favoriteData.id);
+        
+        if (error) throw error;
       } else {
-         await base44.entities.Favorite.create({
-           user_email: user.email,
-           item_type: "ride",
-           item_id: rideId,
-           item_name: ride?.name,
-           notify_on_status_change: false,
-           notify_on_wait_drop: false,
-           notify_on_ride_reopen: false,
-         });
-       }
+        // Add favorite
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_email: user.email,
+            ride_id: rideId,
+            ride_name: ride?.name,
+            park_name: ride?.park_name
+          });
+        
+        if (error) throw error;
+      }
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["favorite", rideId, user?.email] });
       const previousFavorite = queryClient.getQueryData(["favorite", rideId, user?.email]);
-      queryClient.setQueryData(["favorite", rideId, user?.email], isFavorite ? null : { id: "temp", user_email: user.email, item_id: rideId, item_type: "ride", item_name: ride?.name });
+      queryClient.setQueryData(["favorite", rideId, user?.email], isFavorite ? null : { 
+        id: "temp", 
+        user_email: user.email, 
+        ride_id: rideId, 
+        ride_name: ride?.name 
+      });
       return { previousFavorite };
     },
     onError: (err, newFav, context) => {
       queryClient.setQueryData(["favorite", rideId, user?.email], context.previousFavorite);
       toast.error("Failed to update favorite");
+      console.error('Favorite error:', err);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorite", rideId, user?.email] });
